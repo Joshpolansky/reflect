@@ -156,10 +156,30 @@ private:
 private:
     template<typename T, std::size_t... I>
     static void get_field_info_impl(nlohmann::json& info, std::index_sequence<I...>) {
-        ((info["fields"].push_back({
-            {"index", I},
-            {"type", typeid(boost::pfr::tuple_element_t<I, T>).name()}
-        })), ...);
+        // Get field names using the same logic as JSON serialization
+        if constexpr (has_pfr_names<T>()) {
+            auto names = boost::pfr::names_as_array<T>();
+            ((info["fields"].push_back({
+                {"index", I},
+                {"name", std::string(names[I])},
+                {"type", typeid(boost::pfr::tuple_element_t<I, T>).name()}
+            })), ...);
+        } else {
+            auto field_names = get_field_names<T>();
+            if (field_names.size() == sizeof...(I)) {
+                ((info["fields"].push_back({
+                    {"index", I},
+                    {"name", field_names[I]},
+                    {"type", typeid(boost::pfr::tuple_element_t<I, T>).name()}
+                })), ...);
+            } else {
+                ((info["fields"].push_back({
+                    {"index", I},
+                    {"name", "field_" + std::to_string(I)},
+                    {"type", typeid(boost::pfr::tuple_element_t<I, T>).name()}
+                })), ...);
+            }
+        }
     }
 
 public:
@@ -355,7 +375,7 @@ private:
  */
 #define DEFINE_FIELD_NAMES(StructType, ...) \
     template<> \
-    std::vector<std::string> utilities::JsonReflection::get_field_names<StructType>() { \
+    std::vector<std::string> reflect_json::reflection::get_field_names<StructType>() { \
         return {__VA_ARGS__}; \
     }
 
