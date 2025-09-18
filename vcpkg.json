@@ -4,6 +4,7 @@
   "description": "A C++ library for JSON serialization using reflection",
   "dependencies": [
     "boost-pfr",
-    "nlohmann-json"
+    "nlohmann-json",
+    "doctest"
   ]
 }
