@@ -2,7 +2,7 @@
 #include <cassert>
 #include <vector>
 #include <fstream>
-#include <reflect_json/json_reflection.hpp>
+#include <reflect_json/reflect_json.hpp>
 
 // Example structs to demonstrate the reflection utility
 
