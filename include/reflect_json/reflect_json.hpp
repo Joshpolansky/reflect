@@ -312,12 +312,20 @@ private:
 private:
     template<typename T, std::size_t... I>
     static void get_schema_impl(nlohmann::json& schema, std::index_sequence<I...>) {
-        auto field_names = get_field_names<T>();
-        
-        if (field_names.size() == sizeof...(I)) {
-            ((schema["properties"][field_names[I]] = get_type_info<std::decay_t<decltype(boost::pfr::get<I>(std::declval<T>()))>>()), ...);
+        // Use the same field naming logic as JSON serialization for consistency
+        if constexpr (has_pfr_names<T>()) {
+            // Use PFR's native field names
+            auto names = boost::pfr::names_as_array<T>();
+            ((schema["properties"][std::string(names[I])] = get_type_info<std::decay_t<decltype(boost::pfr::get<I>(std::declval<T>()))>>()), ...);
         } else {
-            ((schema["properties"]["field_" + std::to_string(I)] = get_type_info<std::decay_t<decltype(boost::pfr::get<I>(std::declval<T>()))>>()), ...);
+            // Fallback to custom field names or indices
+            auto field_names = get_field_names<T>();
+            if (field_names.size() == sizeof...(I)) {
+                ((schema["properties"][field_names[I]] = get_type_info<std::decay_t<decltype(boost::pfr::get<I>(std::declval<T>()))>>()), ...);
+            } else {
+                // Final fallback to field indices if no names available
+                ((schema["properties"]["field_" + std::to_string(I)] = get_type_info<std::decay_t<decltype(boost::pfr::get<I>(std::declval<T>()))>>()), ...);
+            }
         }
     }
 
