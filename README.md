@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 
-A powerful, modern C++ library that provides automatic JSON serialization and deserialization for structs using **Boost.PFR** (Precise and Flat Reflection) and **nlohmann/json**.
+A powerful, modern C++ library that provides automatic JSON serialization and deserialization for structs using **Boost.PFR** and **nlohmann/json**.
 
 ## ✨ Features
 
