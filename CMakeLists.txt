@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 
+# Set policy for Boost finding
+cmake_policy(SET CMP0167 NEW)
+
 project(reflect-json
     VERSION 1.0.0
     DESCRIPTION "A modern C++ library for JSON serialization using reflection"
