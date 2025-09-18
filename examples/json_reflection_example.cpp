@@ -47,7 +47,7 @@ public:
      */
     static bool save_config(const RobotConfig& config, const std::string& filename) {
         try {
-            auto json_config = utilities::to_json(config);
+            auto json_config = reflect_json::to_json(config);
             
             std::ofstream file(filename);
             if (!file.is_open()) {
@@ -81,7 +81,7 @@ public:
             file >> json_config;
             file.close();
             
-            config = utilities::from_json<RobotConfig>(json_config);
+            config = reflect_json::from_json<RobotConfig>(json_config);
             
             std::cout << "Configuration loaded from: " << filename << std::endl;
             return true;
@@ -135,7 +135,7 @@ public:
             nlohmann::json log_json;
             // Serialize each log entry individually to ensure proper conversion
             for(auto entry : log_entries){
-                log_json.push_back(utilities::to_json(entry));
+                log_json.push_back(reflect_json::to_json(entry));
             }
             
             std::ofstream file(filename);
@@ -159,7 +159,7 @@ public:
             
             log_entries.clear();
             for (const auto& entry_json : log_json) {
-                log_entries.push_back(utilities::from_json<LogEntry>(entry_json));
+                log_entries.push_back(reflect_json::from_json<LogEntry>(entry_json));
             }
             
             std::cout << "Log loaded from: " << filename << std::endl;
@@ -231,8 +231,8 @@ int main() {
     // 3. Schema Generation for API Documentation
     std::cout << "\n3. Schema Generation:" << std::endl;
     
-    auto config_schema = utilities::JsonReflection::get_schema<RobotConfig>();
-    auto log_schema = utilities::JsonReflection::get_schema<LogEntry>();
+    auto config_schema = reflect_json::reflection::get_schema<RobotConfig>();
+    auto log_schema = reflect_json::reflection::get_schema<LogEntry>();
     
     std::ofstream schema_file("api_schemas.json");
     nlohmann::json schemas;

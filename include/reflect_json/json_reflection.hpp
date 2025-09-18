@@ -10,7 +10,7 @@
 #include <iostream>
 #include <string_view>
 
-namespace utilities {
+namespace reflect_json {
 
 /**
  * @brief JSON Reflection Utility using Boost.PFR
@@ -18,7 +18,7 @@ namespace utilities {
  * This utility provides automatic JSON serialization/deserialization for structs
  * using Boost.PFR (Precise and Flat Reflection) without requiring manual field mapping.
  */
-class JsonReflection {
+class reflection {
 private:
     // Helper function to recursively serialize fields
     template<typename T>
@@ -356,20 +356,20 @@ private:
  */
 template<typename T>
 nlohmann::json to_json(const T& obj) {
-    return JsonReflection::to_json(obj);
+    return reflection::to_json(obj);
 }
 
 template<typename T>
 T from_json(const nlohmann::json& j) {
-    return JsonReflection::from_json<T>(j);
+    return reflection::from_json<T>(j);
 }
 
 template<typename T>
 void from_json(const nlohmann::json& j, T& obj) {
-    JsonReflection::from_json(j, obj);
+    reflection::from_json(j, obj);
 }
 
-} // namespace utilities
+} // namespace reflect_json
 
 /**
  * @brief Integration with nlohmann::json ADL
@@ -379,21 +379,21 @@ namespace nlohmann {
 
 /*
  * ADL overloads disabled to prevent conflicts with string literals and other types
- * Use utilities::JsonReflection::to_json() and from_json() explicitly instead
+ * Use reflect_json::reflection::to_json() and from_json() explicitly instead
  */
 
 /*
 template<typename T>
 void to_json(json& j, const T& obj) {
     if constexpr (std::is_aggregate_v<T> && !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string> && !std::is_array_v<T>) {
-        j = utilities::JsonReflection::to_json(obj);
+        j = reflect_json::reflection::to_json(obj);
     }
 }
 
 template<typename T>
 void from_json(const json& j, T& obj) {
     if constexpr (std::is_aggregate_v<T> && !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string> && !std::is_array_v<T>) {
-        utilities::JsonReflection::from_json(j, obj);
+        reflect_json::reflection::from_json(j, obj);
     }
 */
 
