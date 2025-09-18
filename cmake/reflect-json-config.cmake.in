@@ -1,0 +1,15 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Find required dependencies
+find_dependency(Boost REQUIRED)
+find_dependency(nlohmann_json REQUIRED)
+
+# Include the target exports
+if(NOT TARGET reflect-json::reflect-json)
+    include("${CMAKE_CURRENT_LIST_DIR}/reflect-json-targets.cmake")
+endif()
+
+# Check that all required components are available
+check_required_components(reflect-json)

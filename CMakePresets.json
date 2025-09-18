@@ -1,0 +1,276 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default Config",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "REFLECT_JSON_BUILD_TESTS": "ON",
+        "REFLECT_JSON_BUILD_EXAMPLES": "ON",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "default",
+      "displayName": "Debug",
+      "description": "Debug build with all features enabled",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -DDEBUG"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "default",
+      "displayName": "Release",
+      "description": "Release build optimized for performance",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG"
+      }
+    },
+    {
+      "name": "vcpkg",
+      "inherits": "default",
+      "displayName": "vcpkg",
+      "description": "Build using vcpkg for dependency management",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "$env{VCPKG_ROOT}",
+        "rhs": ""
+      }
+    },
+    {
+      "name": "vcpkg-debug",
+      "inherits": ["debug", "vcpkg"],
+      "displayName": "vcpkg Debug",
+      "description": "Debug build with vcpkg dependencies"
+    },
+    {
+      "name": "vcpkg-release",
+      "inherits": ["release", "vcpkg"],
+      "displayName": "vcpkg Release",
+      "description": "Release build with vcpkg dependencies"
+    },
+    {
+      "name": "coverage",
+      "inherits": "vcpkg-debug",
+      "displayName": "Coverage",
+      "description": "Debug build with code coverage enabled",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "--coverage -g -O0",
+        "CMAKE_C_FLAGS": "--coverage -g -O0",
+        "CMAKE_EXE_LINKER_FLAGS": "--coverage",
+        "CMAKE_SHARED_LINKER_FLAGS": "--coverage"
+      }
+    },
+    {
+      "name": "sanitizer",
+      "inherits": "vcpkg-debug",
+      "displayName": "Sanitizers",
+      "description": "Debug build with address and undefined behavior sanitizers",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer -g",
+        "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
+    },
+    {
+      "name": "clang",
+      "inherits": "vcpkg",
+      "displayName": "Clang",
+      "description": "Build using Clang compiler",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "gcc",
+      "inherits": "vcpkg",
+      "displayName": "GCC",
+      "description": "Build using GCC compiler",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "displayName": "Default Build",
+      "description": "Build with default configuration"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "displayName": "Debug Build",
+      "description": "Build debug configuration"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "displayName": "Release Build",
+      "description": "Build release configuration"
+    },
+    {
+      "name": "vcpkg-debug",
+      "configurePreset": "vcpkg-debug",
+      "displayName": "vcpkg Debug Build",
+      "description": "Build debug with vcpkg dependencies"
+    },
+    {
+      "name": "vcpkg-release",
+      "configurePreset": "vcpkg-release",
+      "displayName": "vcpkg Release Build",
+      "description": "Build release with vcpkg dependencies"
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "displayName": "Coverage Build",
+      "description": "Build with coverage instrumentation"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "displayName": "Default Test",
+      "description": "Run all tests with default configuration",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "default"
+      }
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "displayName": "Debug Test",
+      "description": "Run tests in debug mode",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "default"
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "displayName": "Release Test",
+      "description": "Run tests in release mode",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "default"
+      }
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "displayName": "Coverage Test",
+      "description": "Run tests with coverage collection",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "default"
+      }
+    },
+    {
+      "name": "sanitizer",
+      "configurePreset": "sanitizer",
+      "displayName": "Sanitizer Test",
+      "description": "Run tests with sanitizers enabled",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "default"
+      },
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:abort_on_error=1",
+        "UBSAN_OPTIONS": "abort_on_error=1"
+      }
+    }
+  ],
+  "packagePresets": [
+    {
+      "name": "default",
+      "configurePreset": "vcpkg-release",
+      "displayName": "Default Package",
+      "description": "Create release package",
+      "generators": [
+        "TGZ",
+        "ZIP"
+      ]
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "full-build",
+      "displayName": "Full Build and Test",
+      "description": "Configure, build, and test with vcpkg",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "vcpkg-debug"
+        },
+        {
+          "type": "build",
+          "name": "vcpkg-debug"
+        },
+        {
+          "type": "test",
+          "name": "debug"
+        }
+      ]
+    },
+    {
+      "name": "release-package",
+      "displayName": "Release Package",
+      "description": "Build release and create packages",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "vcpkg-release"
+        },
+        {
+          "type": "build",
+          "name": "vcpkg-release"
+        },
+        {
+          "type": "test",
+          "name": "release"
+        },
+        {
+          "type": "package",
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "coverage-report",
+      "displayName": "Coverage Report",
+      "description": "Run tests and generate coverage report",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "coverage"
+        },
+        {
+          "type": "build",
+          "name": "coverage"
+        },
+        {
+          "type": "test",
+          "name": "coverage"
+        }
+      ]
+    }
+  ]
+}
