@@ -2,6 +2,8 @@ add_executable(reflect-json-tests
     test_main.cpp
     basic_reflection_tests.cpp
     path_navigation_tests.cpp
+    array_support_tests.cpp
+    vector_json_tests.cpp
 )
 
 target_link_libraries(reflect-json-tests

@@ -22,11 +22,28 @@ namespace reflect_json {
  */
 class reflection {
 private:
+    // Vector detection helper (used by various functions)
+    template<typename T>
+    struct is_vector : std::false_type {};
+
+    template<typename T, typename A>
+    struct is_vector<std::vector<T, A>> : std::true_type {};
+
+    template<typename T>
+    static constexpr bool is_vector_v = is_vector<std::decay_t<T>>::value;
+
     // Helper function to recursively serialize fields
     template<typename T>
     static nlohmann::json serialize_field(const T& field) {
         if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
             return field;
+        } else if constexpr (is_vector_v<T>) {
+            // Handle vectors by serializing each element
+            nlohmann::json array = nlohmann::json::array();
+            for (const auto& element : field) {
+                array.push_back(serialize_field(element));
+            }
+            return array;
         } else if constexpr (std::is_aggregate_v<T> && !std::is_array_v<T>) {
             // Recursively serialize nested aggregates
             return to_json(field);
@@ -40,6 +57,17 @@ private:
     static T deserialize_field(const nlohmann::json& j) {
         if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
             return j.get<T>();
+        } else if constexpr (is_vector_v<T>) {
+            // Handle vectors by deserializing each element
+            T result;
+            if (j.is_array()) {
+                result.reserve(j.size());
+                for (const auto& element : j) {
+                    using ElementType = typename T::value_type;
+                    result.push_back(deserialize_field<ElementType>(element));
+                }
+            }
+            return result;
         } else if constexpr (std::is_aggregate_v<T> && !std::is_array_v<T>) {
             // Recursively deserialize nested aggregates
             return from_json<T>(j);
@@ -372,27 +400,117 @@ private:
 
 public:
     // =============================================================================
-    // PATH NAVIGATION API (Phase 1)
+    // PATH NAVIGATION API (Phase 1 + Array Support)
     // =============================================================================
     
     /**
-     * @brief Parse a dot notation path into individual field names
+     * @brief Represents a single part of a path - either a field name or array index
+     */
+    struct PathPart {
+        std::string field_name;     ///< Field name (empty if this is an array index)
+        std::optional<std::size_t> array_index;  ///< Array index (nullopt if this is a field)
+        
+        PathPart(const std::string& name) : field_name(name) {}
+        PathPart(std::size_t index) : array_index(index) {}
+        
+        bool is_array_access() const { return array_index.has_value(); }
+        bool is_field_access() const { return !field_name.empty() && !array_index.has_value(); }
+        
+        std::string to_string() const {
+            if (is_array_access()) {
+                return "[" + std::to_string(*array_index) + "]";
+            }
+            return field_name;
+        }
+    };
+
+    /**
+     * @brief Parse a path string into PathPart objects, supporting both dot notation and array access
+     * @param path Path string (e.g., "field.items[0].name", "data[2]")
+     * @return Vector of PathPart objects
+     * 
+     * Examples:
+     * - "name" -> [PathPart("name")]
+     * - "items[0]" -> [PathPart("items"), PathPart(0)]
+     * - "person.addresses[1].street" -> [PathPart("person"), PathPart("addresses"), PathPart(1), PathPart("street")]
+     */
+    static std::vector<PathPart> parse_path_enhanced(const std::string& path) {
+        std::vector<PathPart> parts;
+        if (path.empty()) return parts;
+        
+        std::string current_field;
+        bool in_brackets = false;
+        std::string index_str;
+        
+        for (char c : path) {
+            if (c == '[') {
+                // Start of array index
+                if (!current_field.empty()) {
+                    parts.emplace_back(current_field);
+                    current_field.clear();
+                }
+                in_brackets = true;
+                index_str.clear();
+            } else if (c == ']') {
+                // End of array index
+                if (in_brackets && !index_str.empty()) {
+                    try {
+                        std::size_t index = std::stoull(index_str);
+                        parts.emplace_back(index);
+                    } catch (const std::exception&) {
+                        // Invalid index, ignore
+                    }
+                }
+                in_brackets = false;
+                index_str.clear();
+            } else if (c == '.') {
+                // Field separator
+                if (in_brackets) {
+                    // Dots inside brackets are part of the index (shouldn't happen with numeric indices)
+                    index_str += c;
+                } else {
+                    if (!current_field.empty()) {
+                        parts.emplace_back(current_field);
+                        current_field.clear();
+                    }
+                }
+            } else {
+                // Regular character
+                if (in_brackets) {
+                    index_str += c;
+                } else {
+                    current_field += c;
+                }
+            }
+        }
+        
+        // Add final field if exists
+        if (!current_field.empty()) {
+            parts.emplace_back(current_field);
+        }
+        
+        return parts;
+    }
+
+    /**
+     * @brief Parse a dot notation path into individual field names (legacy function for backward compatibility)
      * @param path Dot notation path (e.g., "field.nested.value")
      * @return Vector of field names
      */
     static std::vector<std::string> parse_path(const std::string& path) {
-        std::vector<std::string> parts;
-        if (path.empty()) return parts;
+        auto enhanced_parts = parse_path_enhanced(path);
+        std::vector<std::string> simple_parts;
         
-        std::stringstream ss(path);
-        std::string part;
-        
-        while (std::getline(ss, part, '.')) {
-            if (!part.empty()) {
-                parts.push_back(part);
+        for (const auto& part : enhanced_parts) {
+            if (part.is_field_access()) {
+                simple_parts.push_back(part.field_name);
+            } else {
+                // For array access, represent as "[index]" string
+                simple_parts.push_back(part.to_string());
             }
         }
-        return parts;
+        
+        return simple_parts;
     }
 
     /**
@@ -475,6 +593,41 @@ public:
         }
         
         return set_field_recursive(obj, path_parts, value, 0);
+    }
+
+    /**
+     * @brief Get field value by path with array support
+     * @tparam T Struct type
+     * @param obj Object to get field from
+     * @param path Path with array support (e.g., "items[0].name", "data[2]")
+     * @return Optional JSON value if path exists
+     */
+    template<typename T>
+    static std::optional<nlohmann::json> get_field_enhanced(const T& obj, const std::string& path) {
+        auto path_parts = parse_path_enhanced(path);
+        if (path_parts.empty()) {
+            return std::nullopt;
+        }
+        
+        return get_field_enhanced_recursive(obj, path_parts, 0);
+    }
+
+    /**
+     * @brief Set field value by path with array support
+     * @tparam T Struct type
+     * @param obj Object to set field in
+     * @param path Path with array support (e.g., "items[0].name", "data[2]")
+     * @param value JSON value to set
+     * @return True if successfully set, false if path invalid or type mismatch
+     */
+    template<typename T>
+    static bool set_field_enhanced(T& obj, const std::string& path, const nlohmann::json& value) {
+        auto path_parts = parse_path_enhanced(path);
+        if (path_parts.empty()) {
+            return false;
+        }
+        
+        return set_field_enhanced_recursive(obj, path_parts, value, 0);
     }
 
     /**
@@ -693,14 +846,20 @@ private:
                         return false;
                     }
                 }
+            } else if constexpr (is_vector_v<FieldType>) {
+                // For vectors, deserialize from JSON array
+                if (value.is_array()) {
+                    field = deserialize_field<FieldType>(value);
+                    return true;
+                }
             } else if constexpr (std::is_aggregate_v<FieldType> && !std::is_array_v<FieldType>) {
                 // For nested structs, deserialize from JSON
                 if (value.is_object()) {
                     field = from_json<FieldType>(value);
                     return true;
                 }
-            } else {
-                // Fallback: let nlohmann::json handle it
+            } else if constexpr (std::is_arithmetic_v<FieldType> || std::is_same_v<FieldType, std::string>) {
+                // For basic types, let nlohmann::json handle it
                 field = value.get<FieldType>();
                 return true;
             }
@@ -795,6 +954,155 @@ private:
         if constexpr (std::is_aggregate_v<FieldType> && !std::is_array_v<FieldType>) {
             collect_all_paths<FieldType>(paths, full_path);
         }
+    }
+
+    // =============================================================================
+    // ENHANCED ARRAY-AWARE RECURSIVE FUNCTIONS
+    // =============================================================================
+
+    // Enhanced recursive getter with array support
+    template<typename T>
+    static std::optional<nlohmann::json> get_field_enhanced_recursive(const T& obj, const std::vector<PathPart>& path_parts, std::size_t depth) {
+        if (depth >= path_parts.size()) {
+            // Base case: return current object as JSON
+            if constexpr (is_vector_v<T>) {
+                return serialize_field(obj);  // Use our serialize_field which handles vectors
+            } else if constexpr (std::is_aggregate_v<T> && !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string>) {
+                return to_json(obj);
+            } else {
+                return nlohmann::json(obj);
+            }
+        }
+        
+        const auto& current_part = path_parts[depth];
+        
+        // Handle array access
+        if (current_part.is_array_access()) {
+            return get_array_element(obj, *current_part.array_index, path_parts, depth + 1);
+        }
+        
+        // Handle field access - only valid for aggregate types
+        if constexpr (is_vector_v<T> || std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
+            return std::nullopt;  // Cannot navigate into non-aggregate types
+        } else if constexpr (!std::is_aggregate_v<T>) {
+            return std::nullopt;
+        } else {
+            constexpr auto field_count = boost::pfr::tuple_size_v<T>;
+            auto field_index = get_field_index<T>(current_part.field_name);
+            
+            if (!field_index) {
+                return std::nullopt;
+            }
+            
+            return get_field_enhanced_at_index(obj, *field_index, path_parts, depth + 1, std::make_index_sequence<field_count>{});
+        }
+    }
+
+    // Enhanced recursive setter with array support
+    template<typename T>
+    static bool set_field_enhanced_recursive(T& obj, const std::vector<PathPart>& path_parts, const nlohmann::json& value, std::size_t depth) {
+        if (depth >= path_parts.size()) {
+            return false; // Invalid path
+        }
+        
+        const auto& current_part = path_parts[depth];
+        
+        // Handle array access
+        if (current_part.is_array_access()) {
+            return set_array_element(obj, *current_part.array_index, path_parts, value, depth + 1);
+        }
+        
+        // Handle field access - only valid for aggregate types
+        if constexpr (is_vector_v<T> || std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
+            return false;  // Cannot navigate into non-aggregate types
+        } else if constexpr (!std::is_aggregate_v<T>) {
+            return false;
+        } else {
+            constexpr auto field_count = boost::pfr::tuple_size_v<T>;
+            auto field_index = get_field_index<T>(current_part.field_name);
+            
+            if (!field_index) {
+                return false;
+            }
+            
+            if (depth == path_parts.size() - 1) {
+                // Final field - set value
+                return set_field_at_index_enhanced(obj, *field_index, value, std::make_index_sequence<field_count>{});
+            } else {
+                // Navigate deeper
+                return set_field_at_index_enhanced_recursive(obj, *field_index, path_parts, value, depth + 1, std::make_index_sequence<field_count>{});
+            }
+        }
+    }
+
+    // Array element getter
+    template<typename T>
+    static std::optional<nlohmann::json> get_array_element(const T& container, std::size_t index, const std::vector<PathPart>& path_parts, std::size_t depth) {
+        // Check if T is a vector/array-like container
+        if constexpr (is_vector_v<T>) {
+            if (index >= container.size()) {
+                return std::nullopt; // Index out of bounds
+            }
+            
+            const auto& element = container[index];
+            
+            if (depth >= path_parts.size()) {
+                // Return the array element directly
+                if constexpr (std::is_aggregate_v<std::decay_t<decltype(element)>> && 
+                             !std::is_arithmetic_v<std::decay_t<decltype(element)>> && 
+                             !std::is_same_v<std::decay_t<decltype(element)>, std::string>) {
+                    return to_json(element);
+                } else {
+                    return nlohmann::json(element);
+                }
+            } else {
+                // Continue navigation into the element
+                return get_field_enhanced_recursive(element, path_parts, depth);
+            }
+        }
+        
+        return std::nullopt; // Not an array-like container
+    }
+
+    // Array element setter
+    template<typename T>
+    static bool set_array_element(T& container, std::size_t index, const std::vector<PathPart>& path_parts, const nlohmann::json& value, std::size_t depth) {
+        // Check if T is a vector/array-like container
+        if constexpr (is_vector_v<T>) {
+            if (index >= container.size()) {
+                return false; // Index out of bounds
+            }
+            
+            auto& element = container[index];
+            
+            if (depth >= path_parts.size()) {
+                // Set the array element directly
+                return try_set_field(element, value);
+            } else {
+                // Continue navigation into the element
+                return set_field_enhanced_recursive(element, path_parts, value, depth);
+            }
+        }
+        
+        return false; // Not an array-like container
+    }
+
+    // Enhanced field setter helpers
+    template<typename T, std::size_t... I>
+    static std::optional<nlohmann::json> get_field_enhanced_at_index(const T& obj, std::size_t target_index, const std::vector<PathPart>& path_parts, std::size_t depth, std::index_sequence<I...>) {
+        std::optional<nlohmann::json> result;
+        ((I == target_index && (result = get_field_enhanced_recursive(boost::pfr::get<I>(obj), path_parts, depth))) || ...);
+        return result;
+    }
+
+    template<typename T, std::size_t... I>
+    static bool set_field_at_index_enhanced(T& obj, std::size_t target_index, const nlohmann::json& value, std::index_sequence<I...>) {
+        return ((I == target_index && try_set_field(boost::pfr::get<I>(obj), value)) || ...);
+    }
+
+    template<typename T, std::size_t... I>
+    static bool set_field_at_index_enhanced_recursive(T& obj, std::size_t target_index, const std::vector<PathPart>& path_parts, const nlohmann::json& value, std::size_t depth, std::index_sequence<I...>) {
+        return ((I == target_index && set_field_enhanced_recursive(boost::pfr::get<I>(obj), path_parts, value, depth)) || ...);
     }
 };
 
