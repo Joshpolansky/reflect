@@ -6,9 +6,8 @@
       "displayName": "Default Config",
       "description": "Default build using Ninja generator",
       "generator": "Ninja Multi-Config",
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "binaryDir": "${sourceDir}/build/",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "REFLECT_JSON_BUILD_TESTS": "ON",
         "REFLECT_JSON_BUILD_EXAMPLES": "ON",
@@ -21,7 +20,6 @@
       "displayName": "Debug",
       "description": "Debug build with all features enabled",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS_DEBUG": "-g -O0 -DDEBUG"
       }
     },
@@ -31,7 +29,6 @@
       "displayName": "Release",
       "description": "Release build optimized for performance",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG"
       }
     },
@@ -106,48 +103,73 @@
   ],
   "buildPresets": [
     {
-      "name": "default",
+      "name": "default-debug",
       "configurePreset": "default",
-      "displayName": "Default Build",
-      "description": "Build with default configuration"
+      "displayName": "Default Debug Build",
+      "description": "Build with default configuration - Debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "default-release",
+      "configurePreset": "default",
+      "displayName": "Default Release Build", 
+      "description": "Build with default configuration - Release",
+      "configuration": "Release"
     },
     {
       "name": "debug",
       "configurePreset": "debug",
       "displayName": "Debug Build",
-      "description": "Build debug configuration"
+      "description": "Build debug configuration",
+      "configuration": "Debug"
     },
     {
       "name": "release",
       "configurePreset": "release",
       "displayName": "Release Build",
-      "description": "Build release configuration"
+      "description": "Build release configuration",
+      "configuration": "Release"
     },
     {
       "name": "vcpkg-debug",
       "configurePreset": "vcpkg-debug",
       "displayName": "vcpkg Debug Build",
-      "description": "Build debug with vcpkg dependencies"
+      "description": "Build debug with vcpkg dependencies",
+      "configuration": "Debug"
     },
     {
       "name": "vcpkg-release",
       "configurePreset": "vcpkg-release",
       "displayName": "vcpkg Release Build",
-      "description": "Build release with vcpkg dependencies"
+      "description": "Build release with vcpkg dependencies",
+      "configuration": "Release"
     },
     {
       "name": "coverage",
       "configurePreset": "coverage",
       "displayName": "Coverage Build",
-      "description": "Build with coverage instrumentation"
+      "description": "Build with coverage instrumentation",
+      "configuration": "Debug"
     }
   ],
   "testPresets": [
     {
-      "name": "default",
+      "name": "default-debug",
       "configurePreset": "default",
-      "displayName": "Default Test",
-      "description": "Run all tests with default configuration",
+      "displayName": "Default Debug Test",
+      "description": "Run all tests with default configuration - Debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true,
+        "verbosity": "default"
+      }
+    },
+    {
+      "name": "default-release",
+      "configurePreset": "default",
+      "displayName": "Default Release Test",
+      "description": "Run all tests with default configuration - Release",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true,
         "verbosity": "default"
@@ -158,6 +180,7 @@
       "configurePreset": "debug",
       "displayName": "Debug Test",
       "description": "Run tests in debug mode",
+      "configuration": "Debug",
       "output": {
         "outputOnFailure": true,
         "verbosity": "default"
@@ -168,6 +191,7 @@
       "configurePreset": "release",
       "displayName": "Release Test",
       "description": "Run tests in release mode",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true,
         "verbosity": "default"
@@ -178,6 +202,7 @@
       "configurePreset": "coverage",
       "displayName": "Coverage Test",
       "description": "Run tests with coverage collection",
+      "configuration": "Debug",
       "output": {
         "outputOnFailure": true,
         "verbosity": "default"
@@ -188,6 +213,7 @@
       "configurePreset": "sanitizer",
       "displayName": "Sanitizer Test",
       "description": "Run tests with sanitizers enabled",
+      "configuration": "Debug",
       "output": {
         "outputOnFailure": true,
         "verbosity": "default"
