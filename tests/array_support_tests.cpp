@@ -22,11 +22,6 @@ struct NestedArrayExample {
     int count;
 };
 
-// Field names for our test structures
-DEFINE_FIELD_NAMES(Item, "name", "value")
-DEFINE_FIELD_NAMES(ItemList, "items", "description") 
-DEFINE_FIELD_NAMES(NestedArrayExample, "title", "lists", "count")
-
 TEST_CASE("Array Support - Path Parsing") {
     SUBCASE("Simple array access") {
         auto parts = reflection::parse_path_enhanced("items[0]");

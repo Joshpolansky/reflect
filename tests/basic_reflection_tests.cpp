@@ -36,8 +36,6 @@ public:
     bool is_connected;
 };
 
-DEFINE_FIELD_NAMES(PersonInfo, "name", "age", "is_active", "salary");
-
 TEST_CASE("Basic Reflection - Struct to JSON") {
     Point3D point{1.5, 2.7, 3.9};
     auto json = reflection::to_json(point);

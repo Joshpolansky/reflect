@@ -23,4 +23,4 @@ target_compile_features(reflect-json-tests
 
 # Add test discovery for CTest
 include(CTest)
-add_test(NAME reflect-json-unit-tests COMMAND reflect-json-tests)
+add_test(NAME reflect-json-unit-tests COMMAND reflect-json-tests -r junit -o test_results.xml)

@@ -17,9 +17,6 @@ struct Person {
     bool active;
 };
 
-DEFINE_FIELD_NAMES(Address, "street", "city", "zip_code");
-DEFINE_FIELD_NAMES(Person, "name", "age", "address", "active");
-
 TEST_CASE("Path Navigation - Basic Field Access") {
     Person person{"John Doe", 30, {"123 Main St", "Anytown", 12345}, true};
     
