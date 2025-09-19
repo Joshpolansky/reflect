@@ -4,7 +4,7 @@ add_executable(basic-example
 
 target_link_libraries(basic-example
     PRIVATE
-        reflect-json::reflect-json
+        reflection::reflection
 )
 
 target_compile_features(basic-example

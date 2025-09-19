@@ -1,9 +1,9 @@
 #include "doctest.h"
-#include "reflect_json/reflect_json.hpp"
+#include "reflection.hpp"
 #include <vector>
 #include <fstream>
 
-using namespace reflect_json;
+using namespace reflection;
 
 // Test structs
 struct Point3D {
@@ -36,9 +36,12 @@ public:
     bool is_connected;
 };
 
+// Define custom field names for PersonInfo to satisfy the reflection test
+DEFINE_FIELD_NAMES(PersonInfo, "name", "age", "is_active", "salary")
+
 TEST_CASE("Basic Reflection - Struct to JSON") {
     Point3D point{1.5, 2.7, 3.9};
-    auto json = reflection::to_json(point);
+    auto json = json::to_json(point);
     
     CHECK(json["x"].get<double>() == 1.5);
     CHECK(json["y"].get<double>() == 2.7);
@@ -47,7 +50,7 @@ TEST_CASE("Basic Reflection - Struct to JSON") {
 
 TEST_CASE("Basic Reflection - JSON to Struct") {
     nlohmann::json json = {{"x", 4.2}, {"y", 5.8}, {"z", 6.1}};
-    auto point = reflection::from_json<Point3D>(json);
+    auto point = json::from_json<Point3D>(json);
     
     CHECK(point.x == 4.2);
     CHECK(point.y == 5.8);
@@ -55,13 +58,13 @@ TEST_CASE("Basic Reflection - JSON to Struct") {
 }
 
 TEST_CASE("Basic Reflection - Complex Struct") {
-    PersonInfo person{"John Doe", 30, true, 75000.5};
-    auto json = reflection::to_json(person);
+    PersonInfo person{"John Doe", 30, true, 75000.50};
+    auto json = json::to_json(person);
     
     CHECK(json["name"].get<std::string>() == "John Doe");
     CHECK(json["age"].get<int>() == 30);
     CHECK(json["is_active"].get<bool>() == true);
-    CHECK(json["salary"].get<double>() == 75000.5);
+    CHECK(json["salary"].get<double>() == 75000.50);
 }
 
 TEST_CASE("Nested Structs") {
@@ -73,7 +76,7 @@ TEST_CASE("Nested Structs") {
         true                    // is_connected
     };
     
-    auto json = reflection::to_json(robot);
+    auto json = reflection::json::to_json(robot);
     
     SUBCASE("Position fields") {
         CHECK(json["position"]["x"].get<double>() == 10.0);
@@ -102,7 +105,7 @@ TEST_CASE("Class Reflection") {
     robot.battery_level = 45.3;
     robot.is_connected = true;
     
-    auto json = reflection::to_json(robot);
+    auto json = reflection::json::to_json(robot);
     
     CHECK(json["position"]["x"].get<double>() == 50.0);
     CHECK(json["status"].get<std::string>() == "MOVING");
@@ -112,7 +115,7 @@ TEST_CASE("Class Reflection") {
 
 TEST_CASE("Schema Generation") {
     SUBCASE("Point3D schema") {
-        auto schema = reflection::get_schema<Point3D>();
+        auto schema = json::get_schema<Point3D>();
         
         CHECK(schema["type"].get<std::string>() == "object");
         CHECK(schema["properties"].contains("x"));
@@ -122,7 +125,7 @@ TEST_CASE("Schema Generation") {
     }
     
     SUBCASE("PersonInfo schema") {
-        auto schema = reflection::get_schema<PersonInfo>();
+        auto schema = json::get_schema<PersonInfo>();
         
         CHECK(schema["type"].get<std::string>() == "object");
         CHECK(schema["properties"].contains("name"));
@@ -154,7 +157,7 @@ TEST_CASE("PFR Capabilities") {
 
 TEST_CASE("Reflection Info") {
     SUBCASE("Point3D info") {
-        auto info = reflection::get_reflection_info<Point3D>();
+        auto info = json::get_reflection_info<Point3D>();
         
         CHECK(info["is_aggregate"].get<bool>() == true);
         CHECK(info["field_info"]["field_count"].get<int>() == 3);
@@ -162,7 +165,7 @@ TEST_CASE("Reflection Info") {
     }
     
     SUBCASE("PersonInfo info") {
-        auto info = reflection::get_reflection_info<PersonInfo>();
+        auto info = json::get_reflection_info<PersonInfo>();
         
         CHECK(info["is_aggregate"].get<bool>() == true);
         CHECK(info["field_info"]["field_count"].get<int>() == 4);
@@ -180,7 +183,7 @@ TEST_CASE("Vector of Structs") {
     // Convert each point to JSON manually since we don't have vector serialization
     nlohmann::json json = nlohmann::json::array();
     for (const auto& point : points) {
-        json.push_back(reflection::to_json(point));
+        json.push_back(json::to_json(point));
     }
     
     CHECK(json.is_array());
@@ -195,7 +198,7 @@ TEST_CASE("File I/O") {
     
     SUBCASE("Write and read JSON file") {
         // Write to file
-        auto json = reflection::to_json(person);
+        auto json = json::to_json(person);
         std::ofstream file("test_output.json");
         file << json.dump(2);
         file.close();
@@ -206,7 +209,7 @@ TEST_CASE("File I/O") {
         infile >> loaded_json;
         infile.close();
         
-        auto loaded_person = reflection::from_json<PersonInfo>(loaded_json);
+        auto loaded_person = json::from_json<PersonInfo>(loaded_json);
         
         CHECK(loaded_person.name == person.name);
         CHECK(loaded_person.age == person.age);

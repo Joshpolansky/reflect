@@ -8,7 +8,7 @@ add_executable(reflect-json-tests
 
 target_link_libraries(reflect-json-tests
     PRIVATE
-        reflect-json::reflect-json
+        reflection::reflection
 )
 
 target_include_directories(reflect-json-tests
