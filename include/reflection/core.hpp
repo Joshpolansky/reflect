@@ -10,8 +10,161 @@
 #include <algorithm>
 #include <sstream>
 #include <cctype>
+#include <chrono>
+#include <map>
+#include <concepts>
 
 namespace reflection {
+
+// =============================================================================
+// CUSTOM CONVERTER SYSTEM
+// =============================================================================
+
+// Generic custom converter template - users can specialize this
+template<typename T>
+struct custom_converter {
+    // No default implementation - this forces specialization
+    // static std::string to_string(const T& value);
+    // static T from_string(const std::string& str);
+};
+
+// Macro to register enum conversions
+#define REGISTER_ENUM(EnumType, ...) \
+    template<> \
+    struct custom_converter<EnumType> { \
+        static std::string to_string(const EnumType& value) { \
+            static const std::map<EnumType, std::string> enum_map{__VA_ARGS__}; \
+            auto it = enum_map.find(value); \
+            if (it != enum_map.end()) { \
+                return it->second; \
+            } \
+            return std::to_string(static_cast<int>(value)); \
+        } \
+        \
+        static EnumType from_string(const std::string& str) { \
+            static const std::map<EnumType, std::string> enum_map{__VA_ARGS__}; \
+            \
+            /* Case-insensitive string comparison */ \
+            auto to_lower = [](const std::string& s) { \
+                std::string lower = s; \
+                std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower); \
+                return lower; \
+            }; \
+            \
+            std::string str_lower = to_lower(str); \
+            \
+            for (const auto& [enum_val, enum_str] : enum_map) { \
+                if (to_lower(enum_str) == str_lower) { \
+                    return enum_val; \
+                } \
+            } \
+            \
+            /* Try to parse as integer */ \
+            try { \
+                int int_val = std::stoi(str); \
+                return static_cast<EnumType>(int_val); \
+            } catch (...) { \
+                throw std::invalid_argument("Invalid enum string: " + str); \
+            } \
+        } \
+    };
+
+// Specialization for std::chrono::duration types
+template<typename Rep, typename Period>
+struct custom_converter<std::chrono::duration<Rep, Period>> {
+    using duration_type = std::chrono::duration<Rep, Period>;
+    
+    static std::string to_string(const duration_type& value) {
+        auto count = value.count();
+        
+        // Convert to most appropriate unit
+        if constexpr (std::is_same_v<Period, std::ratio<1>>) {
+            return std::to_string(count) + "s";
+        } else if constexpr (std::is_same_v<Period, std::ratio<60>>) {
+            return std::to_string(count) + "m";
+        } else if constexpr (std::is_same_v<Period, std::ratio<3600>>) {
+            return std::to_string(count) + "h";
+        } else if constexpr (std::is_same_v<Period, std::milli>) {
+            return std::to_string(count) + "ms";
+        } else {
+            return std::to_string(count) + "s";  // Default to seconds
+        }
+    }
+    
+    static duration_type from_string(const std::string& str) {
+        if (str.empty()) {
+            throw std::invalid_argument("Empty duration string");
+        }
+        
+        // Remove whitespace
+        std::string trimmed = str;
+        trimmed.erase(0, trimmed.find_first_not_of(" \t\r\n"));
+        trimmed.erase(trimmed.find_last_not_of(" \t\r\n") + 1);
+        
+        if (trimmed.empty()) {
+            throw std::invalid_argument("Empty duration string after trimming");
+        }
+        
+        // Check if it's just a number (assume seconds)
+        bool is_numeric = std::all_of(trimmed.begin(), trimmed.end(), 
+            [](char c) { return std::isdigit(c) || c == '.' || c == '-' || c == '+'; });
+        
+        if (is_numeric) {
+            try {
+                Rep count = static_cast<Rep>(std::stod(trimmed));
+                return duration_type(count);
+            } catch (...) {
+                throw std::invalid_argument("Invalid numeric duration: " + trimmed);
+            }
+        }
+        
+        // Parse with unit suffix
+        size_t i = 0;
+        while (i < trimmed.length() && (std::isdigit(trimmed[i]) || trimmed[i] == '.' || trimmed[i] == '-' || trimmed[i] == '+')) {
+            ++i;
+        }
+        
+        if (i == 0) {
+            throw std::invalid_argument("No numeric part found in duration: " + trimmed);
+        }
+        
+        std::string numeric_part = trimmed.substr(0, i);
+        std::string unit_part = trimmed.substr(i);
+        
+        // Remove whitespace from unit part
+        unit_part.erase(0, unit_part.find_first_not_of(" \t"));
+        unit_part.erase(unit_part.find_last_not_of(" \t") + 1);
+        
+        Rep count;
+        try {
+            count = static_cast<Rep>(std::stod(numeric_part));
+        } catch (...) {
+            throw std::invalid_argument("Invalid numeric part in duration: " + numeric_part);
+        }
+        
+        // Convert based on unit
+        if (unit_part == "s" || unit_part == "sec" || unit_part == "seconds") {
+            return std::chrono::duration_cast<duration_type>(std::chrono::duration<double>(count));
+        } else if (unit_part == "m" || unit_part == "min" || unit_part == "minutes") {
+            auto minutes = std::chrono::duration<double, std::ratio<60>>(count);
+            return std::chrono::duration_cast<duration_type>(minutes);
+        } else if (unit_part == "h" || unit_part == "hour" || unit_part == "hours") {
+            auto hours = std::chrono::duration<double, std::ratio<3600>>(count);
+            return std::chrono::duration_cast<duration_type>(hours);
+        } else if (unit_part == "d" || unit_part == "day" || unit_part == "days") {
+            auto days = std::chrono::duration<double, std::ratio<86400>>(count);
+            return std::chrono::duration_cast<duration_type>(days);
+        } else if (unit_part == "ms" || unit_part == "milliseconds") {
+            auto millis = std::chrono::duration<double, std::milli>(count);
+            return std::chrono::duration_cast<duration_type>(millis);
+        } else if (unit_part.empty()) {
+            // No unit specified, assume the target unit
+            return duration_type(count);
+        } else {
+            throw std::invalid_argument("Unknown time unit: " + unit_part);
+        }
+    }
+};
 
 // =============================================================================
 // TYPE HELPERS AND UTILITIES
@@ -39,10 +192,17 @@ constexpr bool has_pfr_names() {
 }
 
 template<typename T>
+struct field_names_traits {
+	static std::vector<std::string> get() {
+		// This is where you can customize field names for specific types
+		// PFR can now extract actual field names from source code automatically!
+		return {};
+	}
+};
+
+template<typename T>
 std::vector<std::string> get_field_names() {
-	// This is where you can customize field names for specific types
-	// PFR can now extract actual field names from source code automatically!
-	return {};
+	return field_names_traits<T>::get();
 }
 
 // Forward declarations for functions we'll need from json module
@@ -215,10 +375,51 @@ std::optional<std::size_t> get_field_index(const std::string& field_name) {
 	return std::nullopt;
 }
 
+// Helper concept to detect duration types
+template<typename T>
+concept is_duration = requires {
+    typename T::rep;
+    typename T::period;
+    std::is_same_v<T, std::chrono::duration<typename T::rep, typename T::period>>;
+};
+
+// Helper to detect if a type has a custom converter
+template<typename T>
+concept has_custom_converter = requires(const T& value, const std::string& str) {
+    { custom_converter<T>::to_string(value) } -> std::convertible_to<std::string>;
+    { custom_converter<T>::from_string(str) } -> std::convertible_to<T>;
+};
+
 // Helper to try setting a field value from JSON with comprehensive type conversion
 template<typename T>
 bool try_set_field(T& field, const nlohmann::json& value) {
 	try {
+		// First check for types with custom converters
+		if constexpr (has_custom_converter<T>) {
+			if (value.is_string()) {
+				field = custom_converter<T>::from_string(value.get<std::string>());
+				return true;
+			} else if (value.is_number()) {
+				// For enum types, try converting from number
+				if constexpr (std::is_enum_v<T>) {
+					field = static_cast<T>(value.get<std::underlying_type_t<T>>());
+					return true;
+				}
+				// For duration types, handle numeric values according to their unit
+				else if constexpr (is_duration<T>) {
+					// For duration types, treat numbers as units of that duration's period
+					// e.g., if T is std::chrono::minutes, treat number as minutes
+					typename T::rep count = static_cast<typename T::rep>(value.get<double>());
+					field = T(count);
+					return true;
+				} else {
+					// Fallback: try converting number as seconds string
+					field = custom_converter<T>::from_string(std::to_string(value.get<double>()) + "s");
+					return true;
+				}
+			}
+		}
+		
 		if constexpr (std::is_same_v<T, std::string>) {
 			if (value.is_string()) {
 				field = value.get<std::string>();
@@ -278,8 +479,8 @@ bool try_set_field(T& field, const nlohmann::json& value) {
 				return true;
 			}
 		} else {
-			// For basic types, let nlohmann::json handle it
-			field = value.get<T>();
+			// Last resort: try deserialize_field_stub for other types
+			field = detail::deserialize_field_stub<T>(value);
 			return true;
 		}
 	} catch (const std::exception& e) {
@@ -392,7 +593,12 @@ std::optional<nlohmann::json> get_field_enhanced_recursive(const T& obj, const s
 		} else if constexpr (std::is_aggregate_v<T> && !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string>) {
 			return to_json_stub(obj);
 		} else {
-			return nlohmann::json(obj);
+			// For primitive types, check if there's a custom converter first
+			if constexpr (has_custom_converter<T>) {
+				return nlohmann::json(custom_converter<T>::to_string(obj));
+			} else {
+				return nlohmann::json(obj);
+			}
 		}
 	}
 
@@ -475,7 +681,12 @@ std::optional<nlohmann::json> get_array_element(const T& container, std::size_t 
 			              !std::is_same_v<std::decay_t<decltype(element)>, std::string>) {
 				return to_json_stub(element);
 			} else {
-				return nlohmann::json(element);
+				// For primitive types, check if there's a custom converter first
+				if constexpr (has_custom_converter<std::decay_t<decltype(element)>>) {
+					return nlohmann::json(custom_converter<std::decay_t<decltype(element)>>::to_string(element));
+				} else {
+					return nlohmann::json(element);
+				}
 			}
 		} else {
 			// Continue navigation into the element
@@ -552,8 +763,13 @@ std::optional<nlohmann::json> get_field_recursive(const T& obj, const std::vecto
 		if constexpr (std::is_aggregate_v<T> && !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string> && !std::is_array_v<T>) {
 			return to_json_stub(obj);
 		} else {
-			// For primitive types, use nlohmann::json constructor directly
-			return nlohmann::json(obj);
+			// For primitive types, check if there's a custom converter first
+			if constexpr (has_custom_converter<T>) {
+				return nlohmann::json(custom_converter<T>::to_string(obj));
+			} else {
+				// For primitive types, use nlohmann::json constructor directly
+				return nlohmann::json(obj);
+			}
 		}
 	}
 
@@ -628,27 +844,101 @@ bool set_field_at_index_recursive(T& obj, std::size_t target_index, const std::v
 	return ((I == target_index && set_field_recursive(boost::pfr::get<I>(obj), path_parts, value, depth)) || ...);
 }
 
-// Stub implementations - now properly implemented by calling json module functions
+// Stub implementations - provide basic serialization functionality
 template<typename T>
 nlohmann::json serialize_field_stub(const T& field) {
-	// Always use the JSON module's serialize_field function
-	return json::detail::serialize_field(field);
+    // For basic types, just convert directly
+    if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
+        return field;
+    }
+    // For types with custom converters, use them
+    else if constexpr (has_custom_converter<T>) {
+        return custom_converter<T>::to_string(field);
+    }
+    // For vectors, serialize elements
+    else if constexpr (is_vector_v<T>) {
+        nlohmann::json result = nlohmann::json::array();
+        for (const auto& item : field) {
+            result.push_back(serialize_field_stub(item));
+        }
+        return result;
+    }
+    // For aggregates, serialize fields using PFR
+    else if constexpr (boost::pfr::tuple_size_v<T> > 0) {
+        nlohmann::json result = nlohmann::json::object();
+        constexpr auto field_count = boost::pfr::tuple_size_v<T>;
+        
+        // Try to use PFR's native field names first, fallback to custom names
+        if constexpr (has_pfr_names<T>()) {
+            // Use PFR's native field name support
+            auto names = boost::pfr::names_as_array<T>();
+            size_t field_index = 0;
+            boost::pfr::for_each_field(field, [&result, &names, &field_index](const auto& field_value) {
+                result[std::string(names[field_index])] = serialize_field_stub(field_value);
+                ++field_index;
+            });
+        } else {
+            // Fallback to custom field names or indices
+            auto field_names = get_field_names<T>();
+            size_t field_index = 0;
+            boost::pfr::for_each_field(field, [&result, &field_names, &field_index, field_count](const auto& field_value) {
+                std::string field_name;
+                if (field_names.size() == field_count) {
+                    field_name = field_names[field_index];
+                } else {
+                    field_name = "field_" + std::to_string(field_index);
+                }
+                result[field_name] = serialize_field_stub(field_value);
+                ++field_index;
+            });
+        }
+        return result;
+    }
+    // For other types, return null as fallback
+    else {
+        return nlohmann::json(nullptr);
+    }
 }
 
 template<typename T>
 T deserialize_field_stub(const nlohmann::json& j) {
-	// Use the JSON module's deserialize_field function  
-	return json::detail::deserialize_field<T>(j);
+    // For basic types, just convert directly
+    if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
+        return j.get<T>();
+    }
+    // For types with custom converters, use them
+    else if constexpr (has_custom_converter<T>) {
+        if (j.is_string()) {
+            return custom_converter<T>::from_string(j.get<std::string>());
+        } else if (j.is_number()) {
+            // For enum types, try converting from number
+            if constexpr (std::is_enum_v<T>) {
+                return static_cast<T>(j.get<std::underlying_type_t<T>>());
+            }
+            // For duration types, handle numeric values according to their unit
+            else if constexpr (is_duration<T>) {
+                // For duration types, treat numbers as units of that duration's period
+                // e.g., if T is std::chrono::minutes, treat number as minutes
+                typename T::rep count = static_cast<typename T::rep>(j.get<double>());
+                return T(count);
+            } else {
+                // Fallback: try converting number as seconds string
+                return custom_converter<T>::from_string(std::to_string(j.get<double>()) + "s");
+            }
+        }
+    }
+    // For other types, construct default and try basic conversion
+    if constexpr (std::is_default_constructible_v<T>) {
+        return T{};
+    } else {
+        // This will likely fail, but it's the best we can do
+        return j.get<T>();
+    }
 }
 
 template<typename T>
 nlohmann::json to_json_stub(const T& obj) {
-	// Use the JSON module's serialize_field function for all types
-	if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
-		return obj;
-	} else {
-		return json::detail::serialize_field(obj);  // serialize_field handles both vectors and aggregates
-	}
+    return serialize_field_stub(obj);
 }
 
 } // namespace detail

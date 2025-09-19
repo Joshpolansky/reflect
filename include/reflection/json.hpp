@@ -64,8 +64,30 @@ namespace detail {
     // Helper function to recursively serialize fields
     template<typename T>
     nlohmann::json serialize_field(const T& field) {
-        if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, std::string>) {
-            return field;
+        // First, try custom converter to_string for JSON serialization
+        if constexpr (std::is_enum_v<T>) {
+            // For enums, try to get string representation first
+            auto string_repr = custom_converter<T>::to_string(field);
+            if (!string_repr.empty()) {
+                return nlohmann::json(string_repr);
+            }
+            // Fall back to integer representation
+            return nlohmann::json(static_cast<std::underlying_type_t<T>>(field));
+        } else if constexpr (std::is_same_v<T, std::chrono::seconds> || 
+                            std::is_same_v<T, std::chrono::minutes> ||
+                            std::is_same_v<T, std::chrono::hours> ||
+                            std::is_same_v<T, std::chrono::duration<double>> ||
+                            std::is_same_v<T, std::chrono::duration<float>> ||
+                            std::is_same_v<T, std::chrono::duration<long long>> ||
+                            std::is_same_v<T, std::chrono::duration<long, std::ratio<60>>> ||
+                            std::is_same_v<T, std::chrono::duration<int, std::ratio<3600>>>) {
+            // For duration types, use custom converter to get string representation
+            auto string_repr = custom_converter<T>::to_string(field);
+            if (!string_repr.empty()) {
+                return nlohmann::json(string_repr);
+            }
+            // Fall back to count as number
+            return nlohmann::json(field.count());
         } else if constexpr (is_vector_v<T>) {
             // Handle vectors by serializing each element
             nlohmann::json array = nlohmann::json::array();

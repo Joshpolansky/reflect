@@ -40,11 +40,11 @@
  * @endcode
  */
 
-// Include JSON module
-#include "reflection/json.hpp"
-
 // Include core reflection and path navigation
 #include "reflection/core.hpp"
+
+// Include JSON module  
+#include "reflection/json.hpp"
 
 namespace reflection {
 
