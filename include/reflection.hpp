@@ -2,15 +2,7 @@
 
 /**
  * @file reflection.hpp
- * @brief Modern C++20 ref// Export path navigation functions from core module
-using reflection::get_field;
-using reflection::set_field;
-using reflection::get_field_enhanced;  
-using reflection::set_field_enhanced;
-using reflection::is_valid_path;
-using reflection::get_all_paths;
-using reflection::parse_path;
-using reflection::parse_path_enhanced;ibrary with JSON serialization and path navigation
+ * @brief Modern C++20 library with JSON serialization and path navigation
  * @version 2.0.0
  * 
  * This header provides the complete reflection API including:

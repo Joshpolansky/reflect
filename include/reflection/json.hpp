@@ -21,6 +21,9 @@ T from_json(const nlohmann::json& j);
 template<typename T>
 void from_json(const nlohmann::json& j, T& obj);
 
+template<typename T>
+nlohmann::json get_schema();
+
 // =============================================================================
 // TYPE HELPERS AND UTILITIES
 // =============================================================================
