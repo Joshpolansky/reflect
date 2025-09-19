@@ -76,7 +76,7 @@ TEST_CASE("Nested Structs") {
         true                    // is_connected
     };
     
-    auto json = reflection::json::to_json(robot);
+    auto json = json::to_json(robot);
     
     SUBCASE("Position fields") {
         CHECK(json["position"]["x"].get<double>() == 10.0);
