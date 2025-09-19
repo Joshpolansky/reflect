@@ -4,11 +4,14 @@ add_executable(reflect-json-tests
     path_navigation_tests.cpp
     array_support_tests.cpp
     vector_json_tests.cpp
+    type_conversion_tests.cpp
+    enum_duration_integration_tests.cpp
+    comprehensive_type_conversion_tests.cpp
 )
 
 target_link_libraries(reflect-json-tests
     PRIVATE
-        reflect-json::reflect-json
+        reflection::reflection
 )
 
 target_include_directories(reflect-json-tests

@@ -1,9 +1,9 @@
 #include "../third_party/doctest.h"
-#include "../include/reflect_json/reflect_json.hpp"
+#include "reflection.hpp"
 #include <vector>
 #include <string>
 
-using namespace reflect_json;
+using namespace reflection;
 
 // Test structures with vectors
 struct Point {
@@ -38,7 +38,7 @@ TEST_CASE("Vector JSON Reflection - Basic Operations") {
         };
         
         // Test serialization
-        auto json = reflection::to_json(triangle);
+        auto json = json::to_json(triangle);
         
         CHECK(json["name"].get<std::string>() == "Triangle");
         CHECK(json["id"].get<int>() == 123);
@@ -65,7 +65,7 @@ TEST_CASE("Vector JSON Reflection - Basic Operations") {
         };
         
         // Test deserialization
-        auto shape = reflection::from_json<Shape>(json);
+        auto shape = json::from_json<Shape>(json);
         
         CHECK(shape.name == "Square");
         CHECK(shape.id == 456);
@@ -94,8 +94,8 @@ TEST_CASE("Vector JSON Reflection - Basic Operations") {
         };
         
         // Convert to JSON and back
-        auto json = reflection::to_json(original);
-        auto restored = reflection::from_json<Shape>(json);
+        auto json = json::to_json(original);
+        auto restored = json::from_json<Shape>(json);
         
         CHECK(restored.name == original.name);
         CHECK(restored.id == original.id);
@@ -118,7 +118,7 @@ TEST_CASE("Vector JSON Reflection - Nested Vectors") {
             {0, 0, 1}
         };
         
-        auto json = reflection::to_json(matrix);
+        auto json = json::to_json(matrix);
         
         CHECK(json["name"].get<std::string>() == "Identity");
         CHECK(json["data"].is_array());
@@ -140,7 +140,7 @@ TEST_CASE("Vector JSON Reflection - Nested Vectors") {
             }}
         };
         
-        auto matrix = reflection::from_json<Matrix>(json);
+        auto matrix = json::from_json<Matrix>(json);
         
         CHECK(matrix.name == "Test Matrix");
         CHECK(matrix.data.size() == 2);
@@ -162,11 +162,11 @@ TEST_CASE("Vector JSON Reflection - Edge Cases") {
         empty_shape.id = 0;
         empty_shape.points = {};  // Empty vector
         
-        auto json = reflection::to_json(empty_shape);
+        auto json = json::to_json(empty_shape);
         CHECK(json["points"].is_array());
         CHECK(json["points"].empty());
         
-        auto restored = reflection::from_json<Shape>(json);
+        auto restored = json::from_json<Shape>(json);
         CHECK(restored.points.empty());
     }
     
@@ -175,13 +175,13 @@ TEST_CASE("Vector JSON Reflection - Edge Cases") {
         list.description = "Prime numbers";
         list.numbers = {2, 3, 5, 7, 11, 13};
         
-        auto json = reflection::to_json(list);
+        auto json = json::to_json(list);
         CHECK(json["numbers"].is_array());
         CHECK(json["numbers"].size() == 6);
         CHECK(json["numbers"][0].get<int>() == 2);
         CHECK(json["numbers"][5].get<int>() == 13);
         
-        auto restored = reflection::from_json<NumberList>(json);
+        auto restored = json::from_json<NumberList>(json);
         CHECK(restored.numbers.size() == 6);
         CHECK(restored.numbers[0] == 2);
         CHECK(restored.numbers[5] == 13);

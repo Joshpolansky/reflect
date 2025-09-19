@@ -2,9 +2,10 @@
 #include <cassert>
 #include <vector>
 #include <fstream>
-#include <reflect_json/reflect_json.hpp>
+#include <reflection.hpp>
 
 // Example structs to demonstrate the reflection utility
+using namespace reflection;
 
 struct Point3D {
     double x;
@@ -49,15 +50,15 @@ void test_basic_reflection() {
     PersonInfo person{"John Doe", 30, true, 75000.50};
     
     // Test basic serialization
-    auto point_json = reflect_json::to_json(point);
-    auto person_json = reflect_json::to_json(person);
+    auto point_json = json::to_json(point);
+    auto person_json = json::to_json(person);
     
     std::cout << "Point3D as JSON: " << point_json.dump(2) << std::endl;
     std::cout << "PersonInfo as JSON: " << person_json.dump(2) << std::endl;
     
     // Convert back from JSON
-    auto point_restored = reflect_json::from_json<Point3D>(point_json);
-    auto person_restored = reflect_json::from_json<PersonInfo>(person_json);
+    auto point_restored = json::from_json<Point3D>(point_json);
+    auto person_restored = json::from_json<PersonInfo>(person_json);
     
     // Verify data integrity
     assert(point_restored.x == point.x);
@@ -84,11 +85,11 @@ void test_nested_structs() {
     };
     
     // Convert to JSON
-    auto robot_json = reflect_json::to_json(robot);
+    auto robot_json = json::to_json(robot);
     std::cout << "RobotState as JSON: " << robot_json.dump(2) << std::endl;
     
     // Convert back
-    auto robot_restored = reflect_json::from_json<RobotState>(robot_json);
+    auto robot_restored = json::from_json<RobotState>(robot_json);
     
     // Verify nested data
     assert(robot_restored.position.x == robot.position.x);
@@ -105,9 +106,9 @@ void test_nested_structs() {
 void test_schema_generation() {
     std::cout << "=== Testing Schema Generation ===" << std::endl;
     
-    auto point_schema = reflect_json::reflection::get_schema<Point3D>();
-    auto person_schema = reflect_json::reflection::get_schema<PersonInfo>();
-    auto robot_schema = reflect_json::reflection::get_schema<RobotState>();
+    auto point_schema = json::get_schema<Point3D>();
+    auto person_schema = json::get_schema<PersonInfo>();
+    auto robot_schema = json::get_schema<RobotState>();
     
     std::cout << "Point3D schema: " << point_schema.dump(2) << std::endl;
     std::cout << "PersonInfo schema: " << person_schema.dump(2) << std::endl;
@@ -120,9 +121,9 @@ void test_pfr_capabilities() {
     std::cout << "=== Testing PFR Capabilities ===" << std::endl;
     
     // Test what PFR can tell us about our structs
-    auto point_info = reflect_json::reflection::get_reflection_info<Point3D>();
-    auto person_info = reflect_json::reflection::get_reflection_info<PersonInfo>();
-    auto robot_info = reflect_json::reflection::get_reflection_info<RobotState>();
+    auto point_info = json::get_reflection_info<Point3D>();
+    auto person_info = json::get_reflection_info<PersonInfo>();
+    auto robot_info = json::get_reflection_info<RobotState>();
     
     std::cout << "Point3D reflection info: " << point_info.dump(2) << std::endl;
     std::cout << "PersonInfo reflection info: " << person_info.dump(2) << std::endl;
@@ -152,10 +153,10 @@ void test_json_integration() {
     PersonInfo person{"Alice", 25, false, 60000.0};
     
     // Using explicit JSON reflection calls
-    nlohmann::json j = reflect_json::reflection::to_json(person);
+    nlohmann::json j = json::to_json(person);
     std::cout << "Explicit to_json conversion: " << j.dump(2) << std::endl;
     
-    PersonInfo person_restored = reflect_json::reflection::from_json<PersonInfo>(j);
+    PersonInfo person_restored = json::from_json<PersonInfo>(j);
     
     assert(person_restored.name == person.name);
     assert(person_restored.age == person.age);
@@ -177,14 +178,14 @@ void test_vector_of_structs() {
     // Convert vector to JSON manually
     nlohmann::json points_json = nlohmann::json::array();
     for (const auto& point : points) {
-        points_json.push_back(reflect_json::reflection::to_json(point));
+        points_json.push_back(json::to_json(point));
     }
     std::cout << "Vector of Point3D as JSON: " << points_json.dump(2) << std::endl;
     
     // Convert back
     std::vector<Point3D> points_restored;
     for (const auto& json_point : points_json) {
-        points_restored.push_back(reflect_json::reflection::from_json<Point3D>(json_point));
+        points_restored.push_back(json::from_json<Point3D>(json_point));
     }
     
     assert(points_restored.size() == points.size());
@@ -209,7 +210,7 @@ void test_file_io() {
     };
     
     // Save to file
-    auto robot_json = reflect_json::to_json(robot);
+    auto robot_json = json::to_json(robot);
     std::ofstream file("test_robot_state.json");
     file << robot_json.dump(2);
     file.close();
@@ -220,7 +221,7 @@ void test_file_io() {
     input_file >> loaded_json;
     input_file.close();
     
-    auto robot_loaded = reflect_json::from_json<RobotState>(loaded_json);
+    auto robot_loaded = json::from_json<RobotState>(loaded_json);
     
     assert(robot_loaded.position.x == robot.position.x);
     assert(robot_loaded.status == robot.status);
@@ -245,11 +246,11 @@ void test_class(){
     };
     
     // Convert to JSON
-    auto robot_json = reflect_json::to_json(robot);
+    auto robot_json = json::to_json(robot);
     std::cout << "RobotStateClass as JSON: " << robot_json.dump(2) << std::endl;
     
     // Convert back
-    auto robot_restored = reflect_json::from_json<RobotStateClass>(robot_json);
+    auto robot_restored = json::from_json<RobotStateClass>(robot_json);
     
     // Verify nested data
     assert(robot_restored.position.x == robot.position.x);

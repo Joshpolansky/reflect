@@ -1,5 +1,5 @@
 {
-  "name": "reflect-json",
+  "name": "reflect",
   "version": "0.0.1",
   "description": "A C++ library for JSON serialization using reflection",
   "dependencies": [

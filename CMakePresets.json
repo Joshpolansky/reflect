@@ -9,8 +9,8 @@
       "binaryDir": "${sourceDir}/build/",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "REFLECT_JSON_BUILD_TESTS": "ON",
-        "REFLECT_JSON_BUILD_EXAMPLES": "ON",
+        "REFLECTION_BUILD_TESTS": "ON",
+        "REFLECTION_BUILD_EXAMPLES": "ON",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/install"
       }
     },
