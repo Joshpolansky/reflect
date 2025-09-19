@@ -105,7 +105,7 @@ TEST_CASE("Class Reflection") {
     robot.battery_level = 45.3;
     robot.is_connected = true;
     
-    auto json = reflection::json::to_json(robot);
+    auto json = json::to_json(robot);
     
     CHECK(json["position"]["x"].get<double>() == 50.0);
     CHECK(json["status"].get<std::string>() == "MOVING");
