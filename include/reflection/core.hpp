@@ -185,7 +185,8 @@ static constexpr bool is_vector_v = is_vector<std::decay_t<T> >::value;
 template<typename T>
 constexpr bool has_pfr_names() {
 	#if __cplusplus >= 202002L
-	return true;      // PFR names are available in C++20
+	// PFR field name support requires C++20, a compatible compiler, and a recent Boost.PFR version
+	return true;
 	#else
 	return false;
 	#endif
